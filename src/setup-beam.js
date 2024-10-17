@@ -770,32 +770,39 @@ async function install(toolName, opts) {
   ///    - configuration elements on how to output the tool version, post-install
 
   switch (toolName) {
-    case 'otp':
-      installOpts = {
-        tool: 'Erlang/OTP',
-        linux: {
-          downloadToolURL: () =>
-            `${hexMirror}/builds/otp/${getRunnerOSArchitecture()}/${versionSpec}.tar.gz`,
-          extract: async (file) => {
-            const dest = undefined
-            const flags = ['zx', '--strip-components=1']
-            const targetDir = await tc.extractTar(file, dest, flags)
+case 'otp':
+  installOpts = {
+    tool: 'Erlang/OTP',
+    linux: {
+      downloadToolURL: () =>
+        `${hexMirror}/builds/otp/${getRunnerOSArchitecture()}/${versionSpec}.tar.gz`,
+      extract: async (file) => {
+        const dest = undefined
+        const flags = ['zx', '--strip-components=1']
+        const targetDir = await tc.extractTar(file, dest, flags)
 
-            return ['dir', targetDir]
-          },
-          postExtract: async (cachePath) => {
-            const cmd = path.join(cachePath, 'Install')
-            const args = ['-minimal', cachePath]
-            await exec(cmd, args)
-          },
-          reportVersion: () => {
-            const cmd = 'erl'
-            const args = ['-version']
-            const env = {}
+        return ['dir', targetDir]
+      },
+      postExtract: async (cachePath) => {
+        const configureCmd = path.join(cachePath, 'configure')
+        const configureArgs = ['--with-ssl', '--enable-sctp']
+        await exec(configureCmd, configureArgs, { cwd: cachePath })
 
-            return [cmd, args, env]
-          },
-        },
+        const makeCmd = 'make'
+        await exec(makeCmd, [], { cwd: cachePath })
+        
+        const installCmd = 'make'
+        const installArgs = ['install']
+        await exec(installCmd, installArgs, { cwd: cachePath })
+      },
+      reportVersion: () => {
+        const cmd = 'erl'
+        const args = ['-version']
+        const env = {}
+
+        return [cmd, args, env]
+      },
+    },
         win32: {
           downloadToolURL: () =>
             'https://github.com/erlang/otp/releases/download/' +
